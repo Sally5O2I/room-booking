@@ -13,6 +13,11 @@ def _is_int(x):
     return type(x) is int
 
 
+def _has_name(name):
+    # 이름이 없으면(None, 빈 문자열, 공백만, 문자열이 아님) 예약 불가
+    return isinstance(name, str) and name.strip() != ""
+
+
 def _valid_room_day(room, day):
     # 튜플 비교(in)는 리스트처럼 해시 불가 값이 들어와도 예외가 나지 않음
     return room in ROOMS and day in DAYS
@@ -25,6 +30,8 @@ class RoomBooking:
 
     def book(self, room, day, start, end, name):
         if not _valid_room_day(room, day):
+            return False
+        if not _has_name(name):
             return False
         if not _is_int(start) or not _is_int(end):
             return False
@@ -55,6 +62,8 @@ class RoomBooking:
 
     def cancel(self, room, day, start, name):
         if not _valid_room_day(room, day) or not _is_int(start):
+            return False
+        if not _has_name(name):
             return False
         slots = self._bookings.get((room, day), [])
         for i, (s, e, n) in enumerate(slots):
