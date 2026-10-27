@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>강의실 예약</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f4f8f7;
+    --card: #ffffff;
+    --ink: #1d2a2f;
+    --muted: #6b7a80;
+    --line: #e2ebe9;
+    --accent: #12a88a;
+    --accent-soft: #e3f6f1;
+    --ok: #12a06c;
+    --ok-soft: #e4f7ee;
+    --bad: #e0413a;
+    --bad-soft: #fdeceb;
+    --chip: #f0f5f4;
+    --shadow: 0 1px 2px rgba(20,40,40,.04), 0 6px 20px rgba(20,40,40,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #10181a; --card: #172225; --ink: #e6efed; --muted: #93a5a8;
+      --line: #25353a; --accent: #2fc7a6; --accent-soft: #163a33;
+      --ok: #3fd096; --ok-soft: #14352a; --bad: #ff6b63; --bad-soft: #3d1c1b;
+      --chip: #1e2c30; --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Noto Sans KR", system-ui, -apple-system, "Apple SD Gothic Neo", sans-serif;
+    line-height: 1.5; -webkit-text-size-adjust: 100%;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 24px 16px 48px; }
+  header { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+  h1 { font-size: 26px; font-weight: 800; margin: 0; letter-spacing: -0.5px; }
+  .sub { color: var(--muted); font-size: 14px; margin: 2px 0 0; }
+  .status { font-size: 13px; padding: 6px 12px; border-radius: 999px; background: var(--chip); color: var(--muted); white-space: nowrap; }
+  .status.ready { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+  .status.err { background: var(--bad-soft); color: var(--bad); font-weight: 700; }
+
+  #result {
+    display: none; border-radius: 16px; padding: 18px 20px; margin-bottom: 18px;
+    border: 2px solid transparent; box-shadow: var(--shadow);
+  }
+  #result.ok { display: block; background: var(--ok-soft); border-color: var(--ok); }
+  #result.bad { display: block; background: var(--bad-soft); border-color: var(--bad); }
+  #result .big { font-size: 34px; font-weight: 800; line-height: 1.1; }
+  #result.ok .big { color: var(--ok); }
+  #result.bad .big { color: var(--bad); }
+  #result .detail { margin-top: 6px; font-size: 15px; word-break: break-all; }
+
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 20px; box-shadow: var(--shadow); min-width: 0; }
+  .card.full { grid-column: 1 / -1; }
+  .card h2 { font-size: 18px; margin: 0 0 14px; display: flex; align-items: center; gap: 8px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); display: inline-block; }
+  .dot.red { background: var(--bad); }
+  .dot.blue { background: #3b82f6; }
+
+  label { display: block; font-size: 13px; font-weight: 700; color: var(--muted); margin: 12px 0 6px; }
+  label:first-of-type { margin-top: 0; }
+  input[type=text] {
+    width: 100%; font: inherit; font-size: 16px; color: var(--ink); background: var(--bg);
+    border: 1.5px solid var(--line); border-radius: 12px; padding: 11px 13px; outline: none;
+  }
+  input[type=text]:focus { border-color: var(--accent); background: var(--card); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+  .chip {
+    font: inherit; font-size: 14px; border: 1.5px solid var(--line); background: var(--chip); color: var(--ink);
+    padding: 6px 12px; border-radius: 999px; cursor: pointer; min-height: 36px;
+  }
+  .chip.on { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+  .chip.weekend { color: var(--muted); }
+  .chip.weekend.on { color: #fff; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .btn {
+    width: 100%; margin-top: 16px; font: inherit; font-size: 16px; font-weight: 700; color: #fff;
+    background: var(--accent); border: 0; border-radius: 12px; padding: 13px; cursor: pointer; min-height: 48px;
+  }
+  .btn.red { background: var(--bad); }
+  .btn.ghost { background: transparent; color: var(--muted); border: 1.5px solid var(--line); width: auto; padding: 8px 14px; min-height: 0; margin: 0; font-size: 13px; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+
+  .sched-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+  .sched-head h2 { margin: 0; }
+  .sched-pickers { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .timeline { position: relative; height: 46px; background: var(--chip); border-radius: 10px; margin: 16px 0 4px; overflow: hidden; }
+  .timeline .blk {
+    position: absolute; top: 6px; bottom: 6px; background: var(--accent); color: #fff; border-radius: 7px;
+    font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+    overflow: hidden; white-space: nowrap; padding: 0 4px; border: 2px solid var(--card);
+  }
+  .ticks { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); padding: 0 1px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 15px; }
+  th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--line); }
+  th { font-size: 12px; color: var(--muted); font-weight: 700; }
+  td.time { font-variant-numeric: tabular-nums; font-weight: 700; white-space: nowrap; }
+  .empty { text-align: center; color: var(--muted); padding: 22px 0 8px; font-size: 14px; }
+
+  .log { list-style: none; padding: 0; margin: 0; max-height: 300px; overflow: auto; }
+  .log li { display: flex; gap: 10px; align-items: flex-start; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+  .badge { flex: none; font-size: 12px; font-weight: 800; padding: 2px 9px; border-radius: 999px; }
+  .badge.ok { background: var(--ok-soft); color: var(--ok); }
+  .badge.bad { background: var(--bad-soft); color: var(--bad); }
+  .log code { font-size: 12.5px; color: var(--muted); word-break: break-all; }
+  footer { margin-top: 22px; font-size: 12px; color: var(--muted); text-align: center; }
+  footer code { background: var(--chip); padding: 1px 6px; border-radius: 6px; }
+
+  @media (max-width: 760px) {
+    .grid { grid-template-columns: 1fr; }
+    h1 { font-size: 22px; }
+    #result .big { font-size: 30px; }
+    .wrap { padding-top: 18px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>강의실 예약</h1>
+      <p class="sub">A101 · A102 · B201 &nbsp;|&nbsp; 월~금 9시~21시</p>
+    </div>
+    <span id="status" class="status">시스템 불러오는 중…</span>
+  </header>
+
+  <div id="result" role="status" aria-live="polite">
+    <div class="big" id="resultBig"></div>
+    <div class="detail" id="resultDetail"></div>
+  </div>
+
+  <div class="grid">
+    <section class="card">
+      <h2><span class="dot"></span>예약하기</h2>
+      <label for="bRoom">강의실</label>
+      <div class="chips" data-for="bRoom" data-kind="room"></div>
+      <input type="text" id="bRoom" value="A101" autocomplete="off">
+      <label for="bDay">요일</label>
+      <div class="chips" data-for="bDay" data-kind="day"></div>
+      <input type="text" id="bDay" value="월" autocomplete="off">
+      <div class="row2">
+        <div><label for="bStart">시작 (시)</label><input type="text" id="bStart" inputmode="decimal" placeholder="예: 10" autocomplete="off"></div>
+        <div><label for="bEnd">끝 (시)</label><input type="text" id="bEnd" inputmode="decimal" placeholder="예: 12" autocomplete="off"></div>
+      </div>
+      <label for="bName">이름</label>
+      <input type="text" id="bName" placeholder="예: 김민수" autocomplete="off">
+      <button class="btn" id="bookBtn" disabled>예약</button>
+    </section>
+
+    <section class="card">
+      <h2><span class="dot red"></span>취소하기</h2>
+      <label for="cRoom">강의실</label>
+      <div class="chips" data-for="cRoom" data-kind="room"></div>
+      <input type="text" id="cRoom" value="A101" autocomplete="off">
+      <label for="cDay">요일</label>
+      <div class="chips" data-for="cDay" data-kind="day"></div>
+      <input type="text" id="cDay" value="월" autocomplete="off">
+      <label for="cStart">시작 시각 (시)</label>
+      <input type="text" id="cStart" inputmode="decimal" placeholder="예: 10" autocomplete="off">
+      <label for="cName">예약한 사람 이름</label>
+      <input type="text" id="cName" placeholder="예: 김민수" autocomplete="off">
+      <button class="btn red" id="cancelBtn" disabled>취소</button>
+    </section>
+
+    <section class="card full">
+      <div class="sched-head">
+        <h2><span class="dot blue"></span>시간표</h2>
+      </div>
+      <div class="sched-pickers">
+        <div><label>강의실</label><div class="chips" id="sRoom" data-kind="room-only"></div></div>
+        <div><label>요일</label><div class="chips" id="sDay" data-kind="day-only"></div></div>
+      </div>
+      <div id="schedTitle" style="font-weight:700;margin-top:10px"></div>
+      <div class="timeline" id="timeline"></div>
+      <div class="ticks"><span>9</span><span>11</span><span>13</span><span>15</span><span>17</span><span>19</span><span>21</span></div>
+      <div id="schedBody"></div>
+    </section>
+
+    <section class="card full">
+      <div class="sched-head">
+        <h2><span class="dot" style="background:var(--muted)"></span>작업 기록</h2>
+        <button class="btn ghost" id="resetBtn" disabled>모든 예약 초기화</button>
+      </div>
+      <ul class="log" id="log"><li class="empty" style="display:block;border:0">아직 작업이 없습니다.</li></ul>
+    </section>
+  </div>
+
+  <footer>
+    예약·취소·시간표는 모두 <code>solution.py</code>의 <code>RoomBooking</code>이 처리합니다 (브라우저에서 Pyodide로 실행).
+    <div id="srcInfo" style="margin-top:4px"></div>
+  </footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+const ROOMS = ["A101", "A102", "B201"];           // 입력 편의용 버튼일 뿐, 검사는 solution.py가 함
+const DAYS = ["월", "화", "수", "목", "금", "토", "일"];
+let py = null, rb = null;
+let view = { room: "A101", day: "월" };
+
+const $ = id => document.getElementById(id);
+
+// --- 입력 편의 버튼 ---
+function buildChips() {
+  document.querySelectorAll(".chips[data-for]").forEach(box => {
+    const input = $(box.dataset.for);
+    const items = box.dataset.kind === "room" ? ROOMS : DAYS;
+    items.forEach(v => {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "chip" + (v === "토" || v === "일" ? " weekend" : ""); b.textContent = v;
+      b.onclick = () => { input.value = v; sync(box, input); };
+      box.appendChild(b);
+    });
+    input.addEventListener("input", () => sync(box, input));
+    sync(box, input);
+  });
+  [["sRoom", ROOMS, "room"], ["sDay", DAYS.slice(0, 5), "day"]].forEach(([id, items, key]) => {
+    const box = $(id);
+    items.forEach(v => {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "chip"; b.textContent = v;
+      b.onclick = () => { view[key] = v; renderSchedule(); };
+      box.appendChild(b);
+    });
+  });
+}
+function sync(box, input) {
+  box.querySelectorAll(".chip").forEach(c => c.classList.toggle("on", c.textContent === input.value.trim()));
+}
+
+// 시각 입력칸의 글자를 파이썬 값으로 바꾸는 일만 함 ("10"→int, "10.5"/"10.0"→float, 그 외→str).
+// JS 숫자는 10과 10.0을 구분하지 못하므로 변환은 파이썬 쪽에서 하고, 예약 규칙 검사는 전부 solution.py가 함.
+const PY_HELPERS = `
+def _hour(text):
+    text = text.strip()
+    try:
+        return int(text)
+    except ValueError:
+        pass
+    try:
+        return float(text)
+    except ValueError:
+        return text
+
+def web_book(room, day, start, end, name):
+    s, e = _hour(start), _hour(end)
+    return rb.book(room, day, s, e, name), repr(s), repr(e)
+
+def web_cancel(room, day, start, name):
+    s = _hour(start)
+    return rb.cancel(room, day, s, name), repr(s)
+`;
+function callPy(fn, ...args) {
+  const proxy = py.globals.get(fn)(...args);
+  const out = proxy.toJs(); proxy.destroy();
+  return out;
+}
+const q = v => JSON.stringify(v);
+
+function showResult(ok, text) {
+  const r = $("result");
+  r.className = ok ? "ok" : "bad";
+  $("resultBig").textContent = ok ? "✔ 성공" : "✘ 실패";
+  $("resultDetail").textContent = text;
+  r.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+function addLog(ok, text, call) {
+  const log = $("log");
+  const empty = log.querySelector(".empty"); if (empty) empty.remove();
+  const li = document.createElement("li");
+  li.innerHTML = `<span class="badge ${ok ? "ok" : "bad"}">${ok ? "성공" : "실패"}</span><div><div></div><code></code></div>`;
+  li.querySelector("div > div").textContent = text;
+  li.querySelector("code").textContent = call;
+  log.prepend(li);
+}
+
+function doBook() {
+  const room = $("bRoom").value, day = $("bDay").value, name = $("bName").value;
+  let ok, call;
+  try {
+    const [res, s, e] = callPy("web_book", room, day, $("bStart").value, $("bEnd").value, name);
+    ok = res === true;
+    call = `book(${q(room)}, ${q(day)}, ${s}, ${e}, ${q(name)})`;
+  } catch (err) { ok = false; call = "오류: " + err.message; console.error(err); }
+  const text = `${name || "(이름 없음)"} · ${room} · ${day} · ${$("bStart").value.trim()}~${$("bEnd").value.trim()}시 예약 ${ok ? "완료" : "거절됨"}`;
+  showResult(ok, text); addLog(ok, text, `${call} → ${ok ? "True" : "False"}`);
+  if (ROOMS.includes(room) && DAYS.slice(0, 5).includes(day)) { view = { room, day }; }
+  renderSchedule();
+}
+function doCancel() {
+  const room = $("cRoom").value, day = $("cDay").value, name = $("cName").value;
+  let ok, call;
+  try {
+    const [res, s] = callPy("web_cancel", room, day, $("cStart").value, name);
+    ok = res === true;
+    call = `cancel(${q(room)}, ${q(day)}, ${s}, ${q(name)})`;
+  } catch (err) { ok = false; call = "오류: " + err.message; console.error(err); }
+  const text = `${name || "(이름 없음)"} · ${room} · ${day} · ${$("cStart").value.trim()}시 예약 취소 ${ok ? "완료" : "거절됨"}`;
+  showResult(ok, text); addLog(ok, text, `${call} → ${ok ? "True" : "False"}`);
+  if (ROOMS.includes(room) && DAYS.slice(0, 5).includes(day)) { view = { room, day }; }
+  renderSchedule();
+}
+
+function renderSchedule() {
+  ["sRoom", "sDay"].forEach((id, i) => $(id).querySelectorAll(".chip").forEach(c =>
+    c.classList.toggle("on", c.textContent === (i ? view.day : view.room))));
+  $("schedTitle").textContent = `${view.room} · ${view.day}요일`;
+  if (!rb) return;
+  let items = [];
+  try {
+    const proxy = rb.get_schedule(view.room, view.day);
+    items = proxy.toJs(); proxy.destroy();
+  } catch (e) { console.error(e); }
+  const tl = $("timeline"); tl.innerHTML = "";
+  items.forEach(([s, e, n]) => {
+    const d = document.createElement("div"); d.className = "blk";
+    d.style.left = ((s - 9) / 12 * 100) + "%"; d.style.width = ((e - s) / 12 * 100) + "%";
+    d.textContent = n; d.title = `${s}~${e}시 ${n}`; tl.appendChild(d);
+  });
+  const body = $("schedBody");
+  if (!items.length) { body.innerHTML = `<div class="empty">예약이 없습니다.</div>`; return; }
+  const t = document.createElement("table");
+  t.innerHTML = `<thead><tr><th>#</th><th>시간</th><th>이름</th></tr></thead><tbody></tbody>`;
+  items.forEach(([s, e, n], i) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td></td><td class="time"></td><td></td>`;
+    tr.children[0].textContent = i + 1;
+    tr.children[1].textContent = `${s}:00 ~ ${e}:00`;
+    tr.children[2].textContent = n;
+    t.tBodies[0].appendChild(tr);
+  });
+  body.innerHTML = ""; body.appendChild(t);
+}
+
+function newSystem() {
+  if (rb) rb.destroy();
+  py.runPython("import solution\nrb = solution.RoomBooking()");
+  rb = py.globals.get("rb");
+}
+
+async function main() {
+  buildChips(); renderSchedule();
+  try {
+    const res = await fetch("solution.py?v=" + Date.now(), { cache: "no-store" });
+    if (!res.ok) throw new Error("solution.py를 찾을 수 없습니다 (" + res.status + ")");
+    const src = await res.text();
+    py = await loadPyodide();
+    py.FS.mkdirTree("/app");
+    py.FS.writeFile("/app/solution.py", src);
+    py.runPython("import sys\nsys.path.insert(0, '/app')\n" + PY_HELPERS);
+    newSystem();
+    const hash = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(src))))
+      .map(b => b.toString(16).padStart(2, "0")).join("").slice(0, 12);
+    $("srcInfo").textContent = `불러온 solution.py: ${src.length}자 · SHA-256 ${hash}`;
+    $("status").textContent = "● 준비 완료"; $("status").className = "status ready";
+    ["bookBtn", "cancelBtn", "resetBtn"].forEach(id => $(id).disabled = false);
+    renderSchedule();
+  } catch (e) {
+    console.error(e);
+    $("status").textContent = "불러오기 실패 — 새로고침해 주세요"; $("status").className = "status err";
+    showResult(false, "시스템을 불러오지 못했습니다: " + e.message);
+  }
+}
+
+$("bookBtn").onclick = doBook;
+$("cancelBtn").onclick = doCancel;
+$("resetBtn").onclick = () => {
+  if (!confirm("모든 예약을 지우고 처음 상태로 되돌릴까요?")) return;
+  newSystem(); $("result").className = ""; $("log").innerHTML = `<li class="empty" style="display:block;border:0">아직 작업이 없습니다.</li>`;
+  renderSchedule();
+};
+["bRoom", "bDay", "bStart", "bEnd", "bName"].forEach(id => $(id).addEventListener("keydown", e => { if (e.key === "Enter" && !$("bookBtn").disabled) doBook(); }));
+["cRoom", "cDay", "cStart", "cName"].forEach(id => $(id).addEventListener("keydown", e => { if (e.key === "Enter" && !$("cancelBtn").disabled) doCancel(); }));
+main();
+</script>
+</body>
+</html>
